@@ -1,5 +1,10 @@
 # FX Trading Simulator V2.9.2
 
+***
+**IMPORTANT UPDATE (21st May 2025):** This project has undergone a full refactoring. The single `50.html` file has been separated into dedicated HTML, CSS, and JavaScript files for improved maintainability and structure (refactored using Google Jules).
+**The new, recommended version can be found in the `Refactored (21st May 2025)` directory.** Please see the updated "How to Use" section below for instructions on accessing these new files. The previous single-file `50.html` is still available but is considered legacy.
+***
+
 A web-based simulator designed to help assess the robustness of FX trading strategies by running simulations with adjustable parameters and Monte Carlo analysis. Built with HTML, Tailwind CSS, and JavaScript (using Chart.js for charts and jsPDF for reporting).
 
 ## Features
