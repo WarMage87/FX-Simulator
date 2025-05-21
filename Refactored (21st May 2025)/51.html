@@ -1,0 +1,634 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <!-- V2.9.2: Refactored Code + Attribution at End -->
+   <title>FX Trading Simulator V2.9.2 - Refactored</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <!-- Chart.js and dependencies -->
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+   <!-- Chart.js Annotation Plugin -->
+   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+   <!-- Fonts -->
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+   <!-- PDF Generation -->
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+   <link rel="stylesheet" href="style.css">
+</head>
+<body>
+   <div class="container">
+        <h1 class="text-2xl font-bold mb-1 text-gray-800">FX Trading Simulator V2.9.2 - Refactored</h1>
+        <p class="text-sm text-gray-600 mb-3" id="subtitle">Total Bankroll: $10,000 | Bet Min $1 | End if Active Cap < $1 or Trades Done</p>
+
+
+
+
+       <!-- Configuration Area -->
+       <fieldset id="core-settings-fieldset">
+           <legend>Core Simulation Settings</legend>
+           <div class="config-row mb-2">
+                <div class="config-item">
+                    <label for="total-bankroll" class="config-item-label" title="Total starting capital ($1 - $1,000,000). Default: $10,000. Changing this resets the simulation.">Total Bankroll ($):</label>
+                    <input type="number" id="total-bankroll" min="1" max="1000000" step="1" value="10000" class="input-field w-24">
+                </div>
+                <div class="config-item">
+                   <label for="initial-active-capital" class="config-item-label" title="Starting capital available for trading ($1 - Total Bankroll). Default: $1,000. Rest is Reserve. Changing this resets the simulation.">Initial Active Cap ($):</label>
+                   <input type="number" id="initial-active-capital" min="1" step="1" value="1000" class="input-field w-24">
+               </div>
+               <div class="config-item">
+                   <label for="num-trades" class="config-item-label" title="Maximum number of trades to simulate per run (1-1,000,000). Default: 100. Changing this resets the simulation.">Trades per Sim:</label>
+                   <input type="number" id="num-trades" min="1" max="1000000" value="100" class="input-field w-20">
+               </div>
+               <div class="config-item">
+                   <label for="ev-slider" class="config-item-label" title="Target Expected Value per $1 risked. Influences calculated win probability based on Win/Loss ranges. Changing this resets the simulation.">Target EV (%):</label>
+                   <div class="config-item-control">
+                       <button class="adjust-btn">-</button>
+                       <div class="slider-container">
+                           <input type="range" id="ev-slider" min="-50" max="50" step="1" value="0" class="slider">
+                           <span id="ev-value" class="slider-value">0%</span>
+                       </div>
+                       <button class="adjust-btn">+</button>
+                   </div>
+                    <span id="win-prob-display" class="win-prob-display">P(Win): 50.0%</span>
+               </div>
+                <div class="config-item">
+                   <label for="speed-slider" class="config-item-label" title="Delay (in milliseconds) between automated trades (for visualization). Not used in Monte Carlo runs.">Speed (ms):</label>
+                    <div class="config-item-control">
+                       <button class="adjust-btn">-</button>
+                       <div class="slider-container">
+                           <input type="range" id="speed-slider" min="10" max="1000" step="10" value="30" class="slider">
+                           <span id="speed-value" class="slider-value">30ms</span>
+                       </div>
+                       <button class="adjust-btn">+</button>
+                    </div>
+               </div>
+           </div>
+       </fieldset>
+
+
+
+
+       <fieldset id="winloss-settings-fieldset">
+           <legend>Win/Loss Ranges</legend>
+           <div class="config-row mb-2">
+               <div class="config-item">
+                   <label for="min-win-slider" class="config-item-label" title="Minimum profit percentage on a winning trade (0-1000%). Changing this resets the simulation.">Min Win (%):</label>
+                   <div class="config-item-control">
+                       <button class="adjust-btn">-</button>
+                       <div class="slider-container">
+                           <input type="range" id="min-win-slider" min="0" max="1000" step="1" value="0" class="slider">
+                           <span id="min-win-value" class="slider-value">0%</span>
+                       </div>
+                       <button class="adjust-btn">+</button>
+                   </div>
+               </div>
+                <div class="config-item">
+                   <label for="max-win-slider" class="config-item-label" title="Maximum profit percentage on a winning trade (Min Win-1000%). Changing this resets the simulation.">Max Win (%):</label>
+                   <div class="config-item-control">
+                        <button class="adjust-btn">-</button>
+                       <div class="slider-container">
+                           <input type="range" id="max-win-slider" min="0" max="1000" step="1" value="100" class="slider">
+                           <span id="max-win-value" class="slider-value">100%</span>
+                       </div>
+                        <button class="adjust-btn">+</button>
+                   </div>
+               </div>
+               <div class="config-item">
+                   <label for="min-loss-slider" class="config-item-label" title="Minimum loss percentage on a losing trade (0-100%). Changing this resets the simulation.">Min Loss (%):</label>
+                   <div class="config-item-control">
+                        <button class="adjust-btn">-</button>
+                       <div class="slider-container">
+                           <input type="range" id="min-loss-slider" min="0" max="100" step="1" value="100" class="slider">
+                           <span id="min-loss-value" class="slider-value">100%</span>
+                       </div>
+                        <button class="adjust-btn">+</button>
+                    </div>
+               </div>
+               <div class="config-item">
+                   <label for="max-loss-slider" class="config-item-label" title="Maximum loss percentage on a losing trade (Min Loss-100%). Changing this resets the simulation.">Max Loss (%):</label>
+                   <div class="config-item-control">
+                        <button class="adjust-btn">-</button>
+                       <div class="slider-container">
+                           <input type="range" id="max-loss-slider" min="0" max="100" step="1" value="100" class="slider">
+                           <span id="max-loss-value" class="slider-value">100%</span>
+                       </div>
+                        <button class="adjust-btn">+</button>
+                    </div>
+               </div>
+           </div>
+       </fieldset>
+
+
+
+
+        <fieldset id="optional-settings-fieldset">
+            <legend>Optional Features</legend>
+           <div class="config-row mb-3">
+                <div class="flex items-center mt-2 md:mt-0 toggle-container">
+                      <input type="checkbox" id="black-swan-toggle" class="toggle-checkbox">
+                      <label for="black-swan-toggle" class="toggle-label" title="Enable rare events causing 100% Active Capital loss.">Black Swan</label>
+                </div>
+                <div class="flex items-center mt-2 md:mt-0">
+                     <label for="black-swan-prob" class="font-semibold text-gray-700 text-sm mr-1" title="Probability (%) of a Black Swan event occurring on any given trade, if enabled.">BS Prob:</label>
+                     <input type="number" id="black-swan-prob" min="0" max="100" step="0.01" value="0.15" class="input-field w-20">
+                </div>
+                <div class="flex items-center mt-2 md:mt-0 toggle-container">
+                    <input type="checkbox" id="bank-profits-toggle" class="toggle-checkbox">
+                    <label for="bank-profits-toggle" class="toggle-label mr-2" title="Automatically move profits above Initial Active Capital to the Reserve account.">Bank Profit</label>
+                </div>
+                <div class="flex items-center mt-2 md:mt-0">
+                     <label for="bank-profits-frequency" class="font-semibold text-gray-700 text-sm mr-1" title="How often (in trades) to check and bank profits, if enabled.">every</label>
+                     <input type="number" id="bank-profits-frequency" min="1" step="1" value="1" class="input-field w-16">
+                     <span class="text-sm text-gray-600 ml-1">trades</span>
+                </div>
+                 <div class="flex items-center mt-2 md:mt-0 toggle-container">
+                     <input type="checkbox" id="auto-topup-toggle" class="toggle-checkbox">
+                     <label for="auto-topup-toggle" class="toggle-label" title="Automatically top up Active Capital from Reserve to Initial Active Cap if it falls below Auto Min Size/Min% Threshold OR < $1 during auto-trading or end-of-run check.">Auto Top-Up</label>
+                 </div>
+           </div>
+       </fieldset>
+
+
+
+
+        <fieldset id="preset-settings-fieldset">
+           <legend>Configuration Presets</legend>
+            <div class="preset-controls py-2">
+                <label for="preset-name" class="font-semibold text-gray-700 text-sm mr-1">Preset Name:</label>
+                <input type="text" id="preset-name" class="input-field w-32" placeholder="e.g., Aggressive">
+                <button id="save-preset-btn" class="btn btn-save-preset btn-sm">Save</button>
+                <label for="load-preset-select" class="font-semibold text-gray-700 text-sm ml-4 mr-1">Load Preset:</label>
+                <select id="load-preset-select" class="input-field w-32">
+                    <option value="">-- Select --</option>
+                </select>
+                <button id="load-preset-btn" class="btn btn-load-preset btn-sm">Load</button>
+                <button id="delete-preset-btn" class="btn btn-delete-preset btn-sm" disabled title="Delete selected preset">Delete</button>
+            </div>
+            <p class="hint-text -mt-1 mb-1 text-center">Changing core settings (Bankroll, Active Cap, Trades, EV, Win/Loss Ranges, Auto Mode) resets the current single simulation. Presets save/load/delete all settings.</p>
+        </fieldset>
+
+
+
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div class="simulation-column">
+                 <!-- Capital Displays -->
+                 <div class="flex justify-around mb-1 text-md w-full">
+                     <div><span class="font-semibold text-gray-700">Active Capital:</span> <span id="active-capital" class="font-bold text-green-600">$1000.00</span></div>
+                     <div><span class="font-semibold text-gray-700">Trades Left:</span> <span id="trades-left" class="font-bold text-blue-600">100</span></div>
+                 </div>
+                 <div class="text-sm text-gray-500 mb-2 w-full text-center">
+                     <span class="capital-display">Reserve: $<span id="reserve-capital">9000.00</span></span> |
+                     <span class="capital-display font-semibold">Total Capital: $<span id="total-capital">10000.00</span></span>
+                     <span id="current-ev-display" class="capital-display font-semibold ml-2">| EV Setting: 0%</span>
+                     <span id="current-pwin-display" class="capital-display font-semibold ml-2">| P(Win): 50.0%</span>
+                 </div>
+                 <!-- Chart -->
+                 <div class="chart-container"> <canvas id="capitalChart"></canvas> </div>
+                 <!-- Message Box -->
+                 <div id="message-box" class="message-box message-info w-full"> <span>Load settings or set config. Place manual trade (min $1), Auto Trade, or Run Monte Carlo.</span><span class="text-sm">Ends if Active Capital < $1 or trades finish.</span> </div>
+
+
+
+
+                 <!-- Manual Betting -->
+                 <fieldset id="manual-betting-fieldset" class="w-full">
+                     <legend>Manual Trade</legend>
+                     <div id="manual-betting-controls" class="mt-1 w-full">
+                         <div class="mb-1 flex items-center justify-center">
+                             <label for="bet-amount" class="font-semibold text-gray-700 text-sm mr-1">Size: $</label>
+                             <input type="number" id="bet-amount" min="1" step="1" class="input-field" placeholder="100">
+                         </div>
+                         <p class="hint-text mb-1">Requires Active Cap >= Size. Min $1.<br>
+                            Est. RoR (Active): <span id="manual-ror-active" class="ror-value">--%</span> | Est. RoR (Total): <span id="manual-ror-total" class="ror-value">--%</span><br>
+                            <span class="text-xs italic text-gray-500" id="manual-ror-hint">RoR estimate assumes this manual bet size.</span>
+                         </p>
+                         <div><button id="place-trade-btn" class="btn btn-trade w-full">Place Trade</button></div>
+                     </div>
+                 </fieldset>
+
+
+
+
+                 <!-- Auto Betting -->
+                  <fieldset id="auto-betting-fieldset" class="w-full">
+                     <legend>Auto Trade (Single Simulation)</legend>
+                     <div id="auto-betting-controls" class="mt-1 w-full">
+                         <div class="betting-mode-selector">
+                              <span>Mode:</span>
+                              <label for="betting-mode-fixed">
+                                  <input type="radio" id="betting-mode-fixed" name="betting-mode" value="fixed" checked> Fixed Size ($)
+                              </label>
+                              <label for="betting-mode-percent">
+                                  <input type="radio" id="betting-mode-percent" name="betting-mode" value="percent"> Percentage (%)
+                              </label>
+                         </div>
+                         <!-- Fixed Size Config -->
+                         <div id="auto-bet-config-fixed" class="auto-bet-config">
+                             <div class="auto-bet-row">
+                                 <label for="auto-min-bet" class="auto-bet-label" title="Minimum trade size ($) for auto trades.">Min Size: $</label>
+                                 <input type="number" id="auto-min-bet" min="1" step="1" class="input-field input-field-sm" placeholder="100" value="100">
+                             </div>
+                             <div class="auto-bet-row">
+                                 <label for="auto-max-bet" class="auto-bet-label" title="Maximum trade size ($) for auto trades.">Max Size: $</label>
+                                 <input type="number" id="auto-max-bet" min="1" step="1" class="input-field input-field-sm" placeholder="100" value="100">
+                             </div>
+                              <div class="auto-bet-row">
+                                   <label for="auto-avg-bet" class="auto-bet-label" title="Average size ($) auto trades will be weighted towards.">Avg Size: $</label>
+                                   <input type="number" id="auto-avg-bet" min="1" step="1" class="input-field input-field-sm" placeholder="100" value="100">
+                              </div>
+                         </div>
+                         <!-- Percentage Size Config (Initially Hidden) -->
+                          <div id="auto-bet-config-percent" class="auto-bet-config" style="display: none;">
+                             <div class="auto-bet-row">
+                                 <label for="auto-min-percent" class="auto-bet-label" title="Minimum trade size (% of TOTAL capital) for auto trades (0.1-100).">Min Percent:</label>
+                                 <input type="number" id="auto-min-percent" min="0.1" max="100" step="0.1" class="input-field input-field-sm" placeholder="1.0" value="1.0"> %
+                             </div>
+                             <div class="auto-bet-row">
+                                 <label for="auto-max-percent" class="auto-bet-label" title="Maximum trade size (% of TOTAL capital) for auto trades (Min % - 100).">Max Percent:</label>
+                                 <input type="number" id="auto-max-percent" min="0.1" max="100" step="0.1" class="input-field input-field-sm" placeholder="10.0" value="10.0"> %
+                             </div>
+                              <div class="auto-bet-row">
+                                   <label for="auto-avg-percent" class="auto-bet-label" title="Average size (% of TOTAL capital) auto trades will be weighted towards.">Avg Percent:</label>
+                                   <input type="number" id="auto-avg-percent" min="0.1" max="100" step="0.1" class="input-field input-field-sm" placeholder="5.0" value="5.0"> %
+                              </div>
+                         </div>
+                         <p class="hint-text mb-1">Bets random size (Min/Max, weighted towards Avg). Percentage is always of <span id="percent-base-hint">Total Capital (Active+Reserve)</span>. Min bet $1 applies.<br>
+                            Est. RoR (Active): <span id="auto-ror-active" class="ror-value">--%</span> | Est. RoR (Total): <span id="auto-ror-total" class="ror-value">--%</span><br>
+                            <span class="text-xs italic text-gray-500" id="auto-ror-hint">RoR estimate uses Avg Size $ or Avg % of current total capital.</span>
+                         </p>
+                         <div class="auto-button-group mt-1">
+                             <button id="auto-trade-btn" class="btn btn-auto flex-1">Start / Resume Auto</button>
+                             <button id="pause-auto-bet-btn" class="btn btn-pause flex-1" style="display: none;">Pause Auto</button>
+                             <button id="stop-auto-bet-btn" class="btn btn-stop-auto flex-1" style="display: none;">Stop Auto</button>
+                         </div>
+                         <button id="reset-button" class="btn btn-reset mt-2 w-full">Restart Single Simulation</button>
+                     </div>
+                 </fieldset>
+
+
+
+
+                 <!-- Results Actions -->
+                 <div class="results-actions mt-4">
+                     <button id="download-results-btn" class="btn btn-download">Download Single Results (PDF)</button>
+                     <button id="clear-results-btn-memory" class="btn btn-clear-results">Clear Single Results</button>
+                 </div>
+                 <p id="results-count" class="text-sm text-gray-600 mt-1">Single Results: 0</p>
+
+
+
+
+                 <!-- Monte Carlo Section -->
+                 <fieldset id="monte-carlo-fieldset" class="w-full">
+                     <legend>Monte Carlo Simulation</legend>
+                     <div id="monte-carlo-controls" class="mt-1 w-full">
+                           <div class="config-item mb-2">
+                                <label for="monte-carlo-runs" class="config-item-label" title="Number of simulation runs for Monte Carlo analysis (1-1,000,000). Default: 1000. Uses current settings for all runs.">MC Runs:</label>
+                                <input type="number" id="monte-carlo-runs" min="1" max="1000000" step="1" value="1000" class="input-field w-20">
+                           </div>
+                         <p class="hint-text mb-1">Run multiple simulations (<span id="mc-runs-display">1000</span> runs) using the current configuration settings. <span class="font-semibold">Note: MC uses a fixed bet size ($) derived from 'Avg Size $' (if fixed mode) or 'Avg %' of initial <span id="mc-fixed-base-hint">total</span> capital (if % mode), unless Variable Sizing is enabled below.</span></p>
+                         <div class="flex items-center justify-center mb-2 toggle-container">
+                               <input type="checkbox" id="mc-variable-bet-toggle" class="toggle-checkbox">
+                               <label for="mc-variable-bet-toggle" class="toggle-label ml-1" title="If checked, each trade in MC runs uses variable sizing (Min/Max/Avg from Auto settings, like single Auto runs). If unchecked (default), uses a fixed bet size derived from the Avg setting.">Use Variable Bet Sizing in MC</label>
+                         </div>
+                         <button id="run-mc-btn" class="btn btn-mc w-full">Run Monte Carlo Batch</button>
+                         <!-- MC Progress Display and Controls -->
+                          <div id="mc-progress-container" style="display: none;">
+                              <progress id="mc-progress-bar" value="0" max="100"></progress>
+                              <p id="mc-progress-text"></p>
+                              <div id="mc-controls-active" style="display: none;">
+                                   <button id="pause-mc-btn" class="btn btn-mc-pause">Pause MC</button>
+                                   <button id="resume-mc-btn" class="btn btn-mc-resume" style="display: none;">Resume MC</button>
+                                   <button id="abort-mc-btn" class="btn btn-mc-abort">Abort MC</button>
+                              </div>
+                          </div>
+                     </div>
+                 </fieldset>
+
+
+
+
+                  <button id="reset-defaults-btn" class="btn btn-defaults mt-2 w-full">Reset All Settings to Defaults</button>
+
+
+
+
+            </div> <!-- End Simulation Column -->
+
+
+
+
+            <!-- Log Column -->
+            <div class="log-column">
+                <h3 class="text-lg font-semibold mb-2 text-gray-700 sticky top-0 bg-gray-100 z-10 p-1">Trade Log</h3>
+                 <div class="log-filter-controls sticky top-8 bg-gray-100 z-10 py-1 text-center">
+                    <button class="btn btn-filter active">All</button>
+                    <button class="btn btn-filter">Wins</button>
+                    <button class="btn btn-filter">Losses</button>
+                    <button class="btn btn-filter">BS</button>
+                    <button class="btn btn-filter">TopUp</button>
+                </div>
+                <table class="log-table">
+                    <thead><tr><th>#</th><th>Bet ($)</th><th>Outcome</th><th>P/L ($)</th><th>Active Cap ($)</th></tr></thead>
+                    <tbody id="trade-log-body"></tbody>
+                </table>
+            </div> <!-- End Log Column -->
+        </div> <!-- End Main Content -->
+
+
+
+
+        <!-- Persistent Results Display -->
+        <div id="persistent-results-area" class="container mt-4" style="display: none;">
+            <div class="flex justify-between items-center mb-3">
+                <button id="prev-result-btn" class="btn btn-filter" disabled>&lt; Prev</button>
+                <h3 id="result-index-display" class="text-lg font-semibold text-gray-700">Single Result X of Y</h3>
+                <button id="next-result-btn" class="btn btn-filter" disabled>Next &gt;</button>
+            </div>
+            <div id="persistent-results-grid" class="modal-stats-grid">
+                <div class="modal-stat-item"> <span class="modal-stat-label">Final Active Capital:</span> <span id="persistent-final-active-capital" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Final Total Capital:</span> <span id="persistent-final-total-capital" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Total Trades Made:</span> <span id="persistent-trades-made" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Win Rate (%):</span> <span id="persistent-win-rate" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Avg Win ($):</span> <span id="persistent-avg-win" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Avg Loss ($):</span> <span id="persistent-avg-loss" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Profit Factor:</span> <span id="persistent-profit-factor" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Max Drawdown (%):</span> <span id="persistent-max-drawdown" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Auto Top-ups:</span> <span id="persistent-auto-topups" class="modal-stat-value">0</span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">End Reason:</span> <span id="persistent-end-reason" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Run #:</span> <span id="persistent-run-number" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item" id="persistent-settings-summary-item"> <span class="modal-stat-label">Settings Summary:</span> <span id="persistent-settings-summary" class="modal-stat-value" style="font-size: 0.8rem; line-height: 1.3;"></span> </div>
+            </div>
+        </div>
+
+
+
+
+    </div> <!-- End Container -->
+
+
+
+
+     <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal">
+         <div class="modal-content">
+             <span id="game-over-modal-close" class="modal-close">×</span>
+             <h2 id="modal-title" class="text-2xl font-bold mb-4">Simulation Over!</h2>
+             <p id="modal-message" class="mb-4" style="white-space: pre-wrap;"></p>
+             <h3 class="text-xl font-semibold mb-2">Simulation Stats:</h3>
+             <div class="modal-stats-grid">
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Final Active Capital:</span> <span id="modal-final-active-capital" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Final Total Capital:</span> <span id="modal-final-total-capital" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Total Trades Made:</span> <span id="modal-trades-made" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Win Rate (%):</span> <span id="modal-win-rate" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Avg Win ($):</span> <span id="modal-avg-win" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Avg Loss ($):</span> <span id="modal-avg-loss" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Profit Factor:</span> <span id="modal-profit-factor" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Max Drawdown (%):</span> <span id="modal-max-drawdown" class="modal-stat-value"></span> </div>
+                  <div class="modal-stat-item"> <span class="modal-stat-label">Auto Top-ups:</span> <span id="modal-auto-topups" class="modal-stat-value">0</span> </div>
+             </div>
+             <div class="mt-4 flex justify-center gap-4 flex-wrap">
+                 <button id="modal-topup-btn" class="btn btn-auto" style="display: none;">Top Up & Continue</button>
+                 <button id="modal-end-btn" class="btn btn-reset">End Simulation</button>
+             </div>
+         </div>
+     </div>
+
+
+
+
+     <!-- Monte Carlo Summary Modal -->
+    <div id="monte-carlo-summary-modal" class="modal">
+        <div class="modal-content">
+            <span id="mc-summary-modal-close" class="modal-close">×</span>
+            <h2 id="mc-modal-title" class="text-2xl font-bold mb-4">Monte Carlo Simulation Summary</h2>
+            <p id="mc-modal-config-summary" class="text-sm text-gray-600 mb-3"></p>
+            <div class="modal-stats-grid">
+                <div class="mc-category-header">Overall Performance (<span id="mc-modal-run-count">N</span> Runs)</div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Average ending Total Capital across all runs.">Avg Final Total Cap:</span> <span id="mc-avg-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Median (middle value) ending Total Capital. Less sensitive to outliers than average.">Median Final Total Cap:</span> <span id="mc-median-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Average percentage return relative to initial Total Capital.">(Avg) Return on Initial Cap:</span> <span id="mc-avg-return-pct" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Median percentage return relative to initial Total Capital.">(Median) Return on Initial Cap:</span> <span id="mc-median-return-pct" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Percentage of runs that ended with more Total Capital than started with.">Probability of Profit (%):</span> <span id="mc-prob-profit" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Average Profit Factor (Total Wins / Total Losses) across runs with losses. Infinite if no losses.">Avg Profit Factor:</span> <span id="mc-avg-pf" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Average Win Rate (%) across all runs.">Avg Win Rate (%):</span> <span id="mc-avg-win-rate" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Average number of trades executed per simulation run.">Avg Trades Made:</span> <span id="mc-avg-trades" class="modal-stat-value"></span> </div>
+                <div class="mc-category-header">Distribution Details (Final Total Capital)</div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Standard Deviation of final Total Capital. Measures dispersion around the average.">Std Dev Final Total Cap:</span> <span id="mc-stddev-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Measures asymmetry. 0=Symmetric, >0 Right-skewed (long tail of high values), <0 Left-skewed (long tail of low values).">Skewness:</span> <span id="mc-skewness" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Measures 'tailedness' vs Normal dist (Kurtosis-3). >0 Heavier tails (more outliers), <0 Lighter tails.">Excess Kurtosis:</span> <span id="mc-kurtosis" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" id="mc-ci68-label" title="Estimated range containing the true average OR 68% of outcomes (depending on type).">68% CI:</span> <span id="mc-ci-68" class="modal-stat-value ci-item"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" id="mc-ci95-label" title="Estimated range containing the true average OR 95% of outcomes (depending on type).">95% CI:</span> <span id="mc-ci-95" class="modal-stat-value ci-item"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" id="mc-ci99-label" title="Estimated range containing the true average OR 99% of outcomes (depending on type).">99% CI:</span> <span id="mc-ci-99" class="modal-stat-value ci-item"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Minimum observed final Total Capital across all runs.">Min Final Total Cap:</span> <span id="mc-min-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="1st Percentile: 1% of runs ended at or below this value.">P01 Final Total Cap:</span> <span id="mc-p01-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="5th Percentile: 5% of runs ended at or below this value (Value at Risk 95%).">P05 Final Total Cap (VaR 95%):</span> <span id="mc-p05-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="10th Percentile.">P10 Final Total Cap:</span> <span id="mc-p10-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="25th Percentile (First Quartile).">P25 Final Total Cap (Q1):</span> <span id="mc-p25-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="75th Percentile (Third Quartile).">P75 Final Total Cap (Q3):</span> <span id="mc-p75-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="Interquartile Range (P75 - P25). Measures spread of middle 50%.">IQR Final Total Cap:</span> <span id="mc-iqr-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="90th Percentile.">P90 Final Total Cap:</span> <span id="mc-p90-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="95th Percentile.">P95 Final Total Cap:</span> <span id="mc-p95-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="99th Percentile.">P99 Final Total Cap:</span> <span id="mc-p99-total-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Maximum observed final Total Capital across all runs.">Max Final Total Cap:</span> <span id="mc-max-total-cap" class="modal-stat-value"></span> </div>
+                <div class="mc-category-header">Risk Metrics</div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Simplified Sharpe Ratio = (Avg Return) / StdDev(Final Capital). Higher is better risk-adjusted return (use cautiously with skew).">Sharpe Ratio (Simplified):</span> <span id="mc-sharpe-ratio" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Average Max Drawdown experienced within each run.">Avg Max Drawdown (%):</span> <span id="mc-avg-max-drawdown" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Median Max Drawdown experienced within each run.">Median Max Drawdown (%):</span> <span id="mc-median-max-drawdown" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="95% of runs experienced a Max Drawdown less than or equal to this value.">P95 Max Drawdown (%):</span> <span id="mc-p95-max-drawdown" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="99% of runs experienced a Max Drawdown less than or equal to this value.">P99 Max Drawdown (%):</span> <span id="mc-p99-max-drawdown" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="Conditional Value-at-Risk (Expected Shortfall): Average Final Total Capital of the worst 5% of runs.">CVaR 95% (Avg Worst 5%):</span> <span id="mc-cvar-95" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item percentile-item"> <span class="modal-stat-label" title="Conditional Value-at-Risk (Expected Shortfall): Average Final Total Capital of the worst 1% of runs.">CVaR 99% (Avg Worst 1%):</span> <span id="mc-cvar-99" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Percentage of runs that ended because Active Capital fell below the minimum required.">Probability of Active Ruin (%):</span> <span id="mc-prob-active-ruin" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Avg Final Active Capital.">Avg Final Active Cap:</span> <span id="mc-avg-active-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Minimum observed final Active Capital.">Min Final Active Cap:</span> <span id="mc-min-active-cap" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Maximum observed final Active Capital.">Max Final Active Cap:</span> <span id="mc-max-active-cap" class="modal-stat-value"></span> </div>
+                <div class="mc-category-header">End Condition Analysis</div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Percentage of runs ending because max trades were reached.">Ended by TimeUp (%):</span> <span id="mc-end-timeup" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Percentage of runs ending Stuck (capital too low), but top-up was successful, disabled, or not needed.">Ended Stuck (No Fail) (%):</span> <span id="mc-end-stuck" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label" title="Percentage of runs ending Stuck because required top-up failed (insufficient reserve).">Ended Stuck (w/ TopUp Fail) (%):</span> <span id="mc-end-stuck-no-topup" class="modal-stat-value"></span> </div>
+                <div class="mc-category-header">Auto Top-Up Statistics</div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Min Auto Top-ups (any run):</span> <span id="mc-min-topups" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Max Auto Top-ups (any run):</span> <span id="mc-max-topups" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item"> <span class="modal-stat-label">Avg Auto Top-ups (per run):</span> <span id="mc-avg-topups" class="modal-stat-value"></span> </div>
+                <div class="modal-stat-item" style="grid-column: span 2;">
+                    <span class="modal-stat-label">Auto Top-up Distribution (Count: # Runs):</span>
+                    <pre id="mc-topup-dist" class="modal-stat-value" style="font-size: 0.8rem; text-align: left; white-space: pre-wrap; max-height: 100px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+            <div class="mt-4" style="height: 300px; width: 100%;">
+                <h3 class="text-lg font-semibold mb-1 text-center text-gray-700">Distribution of Final Total Capital (Histogram)</h3>
+                <canvas id="mc-distribution-chart"></canvas>
+           </div>
+            <div class="mt-4 flex justify-center gap-4">
+                <button id="download-mc-summary-btn" class="btn btn-download">Download Summary (PDF)</button>
+                <button id="mc-summary-close-btn" class="btn btn-filter">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="instructions-container">
+         <h2>How to Use the FX Trading Simulator (V2.9.2)</h2>
+         <p>Simulate trading with adjustable parameters and run Monte Carlo analysis to assess strategy robustness. Settings like Bankroll, Initial Active Cap, Trades per Sim, Target EV, Win/Loss Ranges, and Auto Trade Mode reset the current single simulation when changed. Settings and single-run results are saved locally. Strategy Presets can be saved/loaded/deleted.</p>
+         <p><strong>V2.9.2 Changes:</strong> Code refactoring for maintainability. Renamed 'Reset Simulation Config' button to 'Restart Single Simulation'. Moved PDF attribution to the end of reports. Removed inline onclick event handlers from HTML.</p>
+         <p><strong>V2.9.1 Changes:</strong> Monte Carlo summary now includes conditional Confidence Intervals, Percentiles (P1-P99), aggregated Max Drawdown stats, CVaR (95%/99%), IQR, Return on Initial Capital % (Avg/Median), and a Simplified Sharpe Ratio. Modal and PDF layouts updated.</p>
+        <details>
+            <summary>1. Configuration</summary>
+            <ul>
+               <li><strong>Total Bankroll ($):</strong> Your total available capital ($1 - $1,000,000). Default: $10,000. *Resets simulation.*</li>
+               <li><strong>Initial Active Cap ($):</strong> Starting trading capital ($1 - Total Bankroll). The remainder automatically becomes Reserve Capital. *Resets simulation.*</li>
+               <li><strong>Trades per Sim:</strong> Maximum number of trades per simulation run (1-1,000,000). Default: 100. *Resets simulation.*</li>
+               <li><strong>Target EV (%):</strong> Target Expected Value per $1 risked (-50% to +50%). Influences P(Win). *Resets simulation.*</li>
+               <li><strong>Win Probability Display:</strong> Calculated P(Win) needed for Target EV.</li>
+               <li><strong>Speed (ms):</strong> Delay between trades in *Auto Trade* mode (visualization only). <strong>Not used during Monte Carlo runs.</strong></li>
+               <li><strong>MC Runs:</strong> Number of simulations (1-1,000,000) to run in a Monte Carlo batch using the current settings. Default: 1000.</li>
+               <li><strong>Win/Loss Ranges (%):</strong> Min/Max profit/loss percentages for trades. *Resets simulation.*</li>
+               <li><strong>Black Swan (Toggle & Prob %):</strong> Enable/disable rare 100% Active Capital loss events.</li>
+               <li><strong>Bank Profit (Toggle & Frequency):</strong> Optionally move profits to Reserve periodically.</li>
+               <li><strong>Auto Top-Up (Toggle):</strong> Enable automatic top-up from Reserve if Active Cap drops below Auto Min Size/Min % Threshold OR $1 (if Reserve available).</li>
+               <li><strong>Manual Trade Size ($):</strong> Size for a single manual trade (Min $1).</li>
+                <li><strong>Auto Trade Mode:</strong> *Resets simulation.*
+                   <ul>
+                        <li><code>Fixed Size ($)</code>: Use fixed dollar amounts for auto trades.</li>
+                        <li><code>Percentage (%)</code>: Use a percentage for auto trades. **Percentage is always calculated based on the current TOTAL Capital (Active + Reserve).**</li>
+                   </ul>
+               </li>
+                <li><strong>Auto Trade Settings (based on mode):</strong>
+                    <ul>
+                        <li>If <code>Fixed Size ($)</code>: Set Auto Min/Max/Avg **Size ($)**. Default is $100 for all.</li>
+                        <li>If <code>Percentage (%)</code>: Set Auto Min/Max/Avg **Percent (%)** (0.1-100%). The percentage applies to the current **Total Capital**. Min bet of $1 still applies. Default Min % is 1.0%.</li>
+                    </ul>
+                </li>
+               <li><strong>Presets:</strong> Save, Load, or Delete entire configurations using the controls provided.</li>
+               <li><strong>Monte Carlo Bet Sizing (Toggle):</strong>
+                   <ul>
+                       <li><code>Use Variable Bet Sizing in MC</code> (Checkbox):
+                           <ul>
+                               <li>**Checked:** Each trade within each MC run uses a variable size, calculated using the *Auto Trade* Min/Max/Avg settings active when the MC batch was started. Percentage mode uses current **Total Capital**.</li>
+                               <li>**Unchecked (Default):** All trades within all MC runs use a single, *fixed dollar amount* derived at the start of the MC batch from the *Auto Trade Avg* setting (Avg $ if Fixed mode, or Avg % of *initial total* capital if Percentage mode).</li>
+                           </ul>
+                       </li>
+                   </ul>
+               </li>
+                <li><em>Note:</em> Changing settings marked *Resets simulation* restarts the current *single* simulation run. Loading a preset also resets the run.</li>
+            </ul>
+        </details>
+        <details>
+            <summary>2. Running Simulations</summary>
+             <ul>
+                <li><strong>Manual:</strong> Enter trade size (min $1), check Est. RoR, click "Place Trade" for one trade.</li>
+                <li><strong>Auto Trade (Single Run):</strong>
+                    <ul>
+                        <li>Select **Auto Trade Mode** (Fixed $ or Percentage %). *This choice resets the simulation.*</li>
+                        <li>Set the corresponding Auto Min/Max/Avg parameters.</li>
+                        <li>Check Est. RoR.</li>
+                        <li>Click "Start/Resume Auto" to run one simulation automatically with visualization (uses Speed setting).</li>
+                        <li>Use Pause/Stop buttons as needed. Pause will halt execution; Resume continues; Stop ends the auto run.</li>
+                        <li>Use "Restart Single Simulation" (below Auto buttons) to restart the *single* run with current settings.</li>
+                    </ul>
+                </li>
+                <li><strong>Monte Carlo:</strong>
+                    <ul>
+                        <li>Set all desired configuration parameters.</li>
+                        <li>Enter the number of runs in the "MC Runs" field (1-1,000,000).</li>
+                        <li>Decide the MC bet sizing (check or uncheck "Use Variable Bet Sizing in MC").</li>
+                        <li>Click "Run Monte Carlo Batch".</li>
+                        <li>The simulator runs sequentially *without* visualization delays.</li>
+                        <li>Progress bar and text ("Running X of Y...") will be shown. Controls will be disabled, but **Pause MC**, **Resume MC**, and **Abort MC** buttons will appear and remain interactive.</li>
+                        <li>**Pause MC:** Temporarily stops starting new simulations. Current sim finishes.</li>
+                        <li>**Resume MC:** Continues from where it paused.</li>
+                        <li>**Abort MC:** Stops the batch immediately after the current simulation finishes. A summary of *completed* runs will be shown.</li>
+                        <li>Once complete (or aborted), a **Summary Modal** appears showing aggregated statistics (categorized), new distribution metrics (Skewness, Kurtosis, **Conditional CIs**, **Percentiles**, **Aggregated Max Drawdown**, **CVaR**, **IQR**, **Return %**, **Sharpe**), and the **distribution histogram** (X-axis: Final Total Capital, Y-axis: Frequency). Vertical lines show **Mean**, **Median**, and **Mode**.</li>
+                        <li>**Important:** Monte Carlo results are *not* saved in the "Single Results" persistent area or the downloadable single-run PDF. Use the "Download Summary (PDF)" button in the modal (this PDF now includes the histogram chart image and all new metrics, with attribution at the end).</li>
+                    </ul>
+                </li>
+                <li><strong>Restart Single Simulation:</strong> Resets the current *single* simulation run to the start using current settings. (Located below Auto Trade buttons).</li>
+                <li><strong>Reset All Settings to Defaults:</strong> Reverts ALL settings to defaults and resets the single run. (Located below MC section).</li>
+                <li><strong>Download/Clear Single Results:</strong> Buttons located below "Restart Single Simulation" manage the stored results from individual runs. Downloaded PDF now has attribution at the end.</li>
+             </ul>
+        </details>
+        <details>
+            <summary>3. Understanding Output & Results</summary>
+            <ul>
+                <li><strong>Main Display:</strong> Shows current state for a *single* run (Active/Reserve/Total Cap, Trades Left, EV, P(Win)). Total Capital reflects the Bankroll setting minus any net losses.</li>
+                <li><strong>Chart (Top):</strong> Visualizes capital changes for the *current or last single* run. Not updated during MC batch runs.</li>
+                <li><strong>Log:</strong> Detailed trade history for the *current or last single* run. Not updated during MC batch runs. Filter controls available.</li>
+                <li><strong>Estimated RoR:</strong> Predictive estimate based on current single-run settings and assumed bet size (manual input or auto avg).</li>
+                <li><strong>Game Over Modal (Single Run):</strong> Appears after a manual or auto-trade run ends, showing stats for *that specific run*. Allows optional manual Top-Up if Stuck and possible.</li>
+                <li><strong>Monte Carlo Summary Modal:</strong> Appears *only* after a Monte Carlo batch completes or is aborted. Shows aggregated statistics across all *completed* runs, now **categorized** for clarity. Includes config summary, bet sizing method, and a **Histogram** showing the frequency distribution of final total capital outcomes. Vertical lines indicate **Mean**, **Median**, and estimated **Mode**. Also includes **Skewness**, **Kurtosis**, **Conditional Confidence Intervals (CI)** (type depends on skewness), **Percentiles (P1-P99)**, **Aggregated Max Drawdown** (Avg, Median, P95, P99), **CVaR (95%/99%)**, **IQR**, **Return on Initial Capital %** (Avg/Median), and **Simplified Sharpe Ratio**. Allows downloading the summary as PDF (including the histogram and new metrics, with attribution at the end).</li>
+                <li><strong>Persistent Single Results:</strong> Area showing stats for *individually completed* simulation runs (manual/auto-trade). Can be navigated and downloaded as PDF (attribution at end).</li>
+                <li><strong>Performance Metrics (Single Run):</strong> Win Rate, Avg Win/Loss, Profit Factor, Max Drawdown, Auto Top-ups for *one* completed run.</li>
+                <li><strong>Performance Metrics (Monte Carlo Summary):</strong> Aggregated stats including central tendency (Avg, Median, Mode), dispersion (StdDev, IQR, Percentiles), shape (Skewness, Kurtosis), performance (Prob Profit, Avg PF, Return %), risk (Prob Ruin, Drawdown Stats, CVaR), confidence intervals, and operational stats (Avg Trades, Top-ups, End Reasons).</li>
+            </ul>
+        </details>
+        <details>
+            <summary>4. Key Differences: Single Run vs. Monte Carlo</summary>
+             <ul>
+                <li><strong>Purpose:</strong> Single run shows one specific outcome path. Monte Carlo shows the *distribution* of outcomes over many runs.</li>
+                 <li><strong>Bet Sizing:</strong> Single Auto uses variable sizing. MC can use Fixed (derived from Avg) or Variable (like Single Auto), selectable via toggle.</li>
+                <li><strong>Speed:</strong> Single Auto uses visualization speed. MC runs faster (no delay), but can be paused/resumed/aborted.</li>
+                <li><strong>Output:</strong> Single run updates Chart/Log. MC shows progress bar/text and only the final summary modal (with categorized stats, **histogram**, and extensive distribution/risk metrics).</li>
+                <li><strong>Results Saving:</strong> Single run results saved persistently, downloadable PDF (attribution at end). MC summary is modal-only, with its own PDF download option (including histogram and new metrics, attribution at end).</li>
+                <li><strong>Modals:</strong> Single run shows Game Over modal. MC shows Summary modal.</li>
+                <li><strong>Interactivity:</strong> Single Auto can be paused/stopped/resumed. MC can be paused/resumed/aborted.</li>
+             </ul>
+        </details>
+        <details>
+            <summary>5. Glossary</summary>
+            <ul>
+                <li><strong>Total Bankroll:</strong> Overall capital pool set at start.</li>
+                <li><strong>Active Capital:</strong> Funds available for trading.</li>
+                <li><strong>Reserve Capital:</strong> Total Bankroll - Active Capital.</li>
+                <li><strong>Total Capital (Current):</strong> Active Capital + Reserve Capital.</li>
+                <li><strong>EV (Expected Value):</strong> Average P/L expected per $1 risked.</li>
+                <li><strong>P(Win):</strong> Probability of a single trade being profitable.</li>
+                <li><strong>Auto Trade Mode ($ / %):</strong> Determines auto trade size calculation method.</li>
+                <li><strong>RoR (Risk of Ruin):</strong> *Estimated* probability of Active Cap dropping below $1. Sensitive to assumed bet size.</li>
+                <li><strong>Black Swan:</strong> Rare, high-impact negative event simulation.</li>
+                <li><strong>Banking:</strong> Moving profits from Active to Reserve.</li>
+                <li><strong>Auto Top-Up:</strong> Automatically moving funds from Reserve to Active.</li>
+                <li><strong>Profit Factor:</strong> Ratio of total money won to total money lost.</li>
+                <li><strong>Max Drawdown (Run):</strong> Max observed % loss from a peak in Active Capital *within a single run*.</li>
+                <li><strong>Max Drawdown (MC Aggregated):</strong> Statistics (Avg, Median, P95, P99) describing the distribution of the *per-run* Max Drawdowns across all MC simulations.</li>
+                <li><strong>Monte Carlo Simulation:</strong> Running the same simulation many times for statistical analysis.</li>
+                <li><strong>MC Bet Sizing (Fixed vs Variable):</strong> Determines if MC trades use a constant dollar amount or variable sizing.</li>
+                <li><strong>Mean:</strong> The average value.</li>
+                <li><strong>Median:</strong> The middle value when data is sorted (P50).</li>
+                <li><strong>Mode:</strong> The most frequently occurring value (or range).</li>
+                <li><strong>Std Dev (Standard Deviation):</strong> Measures data dispersion around the average.</li>
+                <li><strong>Skewness:</strong> Measures the asymmetry of the distribution. 0 indicates perfect symmetry. Positive value indicates a longer tail to the right (more extreme high values possible), negative indicates a longer tail to the left.</li>
+                <li><strong>Excess Kurtosis:</strong> Measures the "tailedness" or peakedness compared to a normal distribution (Kurtosis - 3). Positive means heavier tails and a sharper peak (more outliers), negative means lighter tails and a flatter peak.</li>
+                <li><strong>Confidence Interval (CI):</strong> An estimated range of values likely to contain a parameter. **Conditional:** If Skewness is low, it estimates the range for the *true mean* (Mean CI). If Skewness is high, it shows the range containing the central X% of *observed outcomes* (Percentile CI). Type shown in modal.</li>
+                <li><strong>Percentile (Px):</strong> The value below which x% of the observations fall (e.g., P05 means 5% of runs ended at or below this value). VaR 95% = P05.</li>
+                <li><strong>IQR (Interquartile Range):</strong> P75 - P25. The range containing the middle 50% of outcomes.</li>
+                <li><strong>CVaR (Conditional Value-at-Risk) / Expected Shortfall:</strong> The average outcome of the runs within the worst X% tail (e.g., CVaR 95% is the average outcome of the worst 5% of runs).</li>
+                <li><strong>Return on Initial Capital (%):</strong> (Final Total Capital - Initial Total Capital) / Initial Total Capital * 100%.</li>
+                <li><strong>Sharpe Ratio (Simplified):</strong> (Average Return) / Standard Deviation of Final Capital. Basic risk-adjusted return measure; less reliable for skewed distributions.</li>
+                <li><strong>Probability of Profit (MC):</strong> % of runs ending with more Total Capital than start.</li>
+                <li><strong>Probability of Active Ruin (MC):</strong> % of runs ending because Active Capital fell below the minimum required.</li>
+                <li><strong>Histogram (MC):</strong> A bar chart showing the frequency (number of runs) ending within specific ranges (bins) of final total capital. Visually represents the actual distribution shape and skewness.</li>
+            </ul>
+        </details>
+        <details open>
+            <summary>6. Copyright & Attribution</summary>
+             <p> This FX Trading Simulator (V2.9.2) is licensed under the <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Creative Commons Attribution 4.0 International (CC BY 4.0)</a> license. </p>
+             <p> You are free to: <ul> <li><strong>Share:</strong> Copy and redistribute the material in any medium or format.</li> <li><strong>Adapt:</strong> Remix, transform, and build upon the material for any purpose, even commercially.</li> </ul> </p>
+             <p> Under the following terms: <ul> <li><strong>Attribution:</strong> You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.</li> </ul> </p>
+             <p> <strong>Please attribute the creator as follows:</strong> <br> Created by: <strong>Winston Koh</strong>, Founder & Chief Trader of <strong>ZenithFX Trading Academy</strong>. </p>
+             <p> Your use of this simulator implies acceptance of these terms. We hope this tool proves valuable in your trading analysis and education! </p>
+        </details>
+     </div>
+
+
+
+
+   <script src="script.js" defer></script>
+</body>
+</html>
